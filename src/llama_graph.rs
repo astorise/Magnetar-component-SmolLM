@@ -403,6 +403,14 @@ fn build_layer(
 /// prior segment's output. `end_layer == config.num_hidden_layers` ends with
 /// the final-norm/lm-head projection; an earlier `end_layer` ends with the
 /// raw post-layer hidden state for a subsequent segment to consume.
+#[cfg(not(feature = "test-only-assume-silu"))]
+fn ensure_activation_verified() {
+    panic!("SmolLM2 graph production requires validated SiLU activation (Magnetar #217)");
+}
+
+#[cfg(feature = "test-only-assume-silu")]
+fn ensure_activation_verified() {}
+
 fn build_graph_segment(
     phase: GraphPhase,
     sequence_length: u64,
@@ -411,6 +419,10 @@ fn build_graph_segment(
     start_layer: u32,
     end_layer: u32,
 ) -> String {
+    // `model-config@1.4.0` does not communicate hidden_act. Never emit a
+    // SiLU graph for an unverified checkpoint in the default build. The
+    // opt-in feature exists exclusively for pinned-reference integration tests.
+    ensure_activation_verified();
     let config = model_config::model_config();
     // Llama 3 checkpoints rescale RoPE frequencies per pair; the Runtime
     // only forwards what this Component declares on its `rope` nodes.
