@@ -1,0 +1,16 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  module:
+    uses: astorise/Magnetar/.github/workflows/submodule-ci.yml@main
+    with:
+      module-path: components/smollm
+      deny: false
