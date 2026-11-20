@@ -1,14 +1,21 @@
 # magnetar-component-smollm
 
-Placeholder for SmolLM model families in [Magnetar](https://github.com/astorise/Magnetar).
+SmolLM model component for [Magnetar](https://github.com/astorise/Magnetar).
 
 ## Status
 
-This is a scaffold only. It has no model graph, loader, weights, inference implementation, Component Model exports or supported checkpoint. Creating this repository does not make the model runnable in Magnetar.
+The initial Rust library reads and validates SmolLM3's per-layer RoPE/NoPE
+position plan from a Hugging Face configuration. Integration tests exercise the
+published SmolLM3-3B configuration at a pinned revision and malformed inputs.
+The library does not load weights or implement graph production, Component
+Model exports, or inference; SmolLM3 is not yet runnable in Magnetar.
 
 ## Work required
 
-Checkpoint-specific decoder, tokenizer, attention and positional-encoding semantics, validated against reference logits.
+Checkpoint-specific decoder, tokenizer, attention and positional-encoding
+semantics still need integration into Magnetar and validation against reference
+logits. The runtime contract needed for per-layer RoPE/NoPE is tracked in
+[Magnetar #212](https://github.com/astorise/Magnetar/issues/212).
 
 A real implementation must identify a specific checkpoint and its license, integrate the relevant Magnetar component and runtime contracts, and validate outputs against an independent reference. See the [upstream model or project](https://huggingface.co/HuggingFaceTB/SmolLM3-3B). Model weights are not included.
 
