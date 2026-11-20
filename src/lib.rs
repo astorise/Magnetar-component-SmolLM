@@ -1,7 +1,10 @@
 //! SmolLM model component for Magnetar.
 //!
 //! This initial implementation reads SmolLM3's per-layer positional
-//! configuration. Graph production and inference are not implemented yet.
+//! configuration, and provides the Llama-compatible graph producer used by
+//! SmolLM2. SmolLM3 graph production and inference are not implemented yet.
+
+mod llama_graph;
 
 use serde::Deserialize;
 use std::error::Error;
