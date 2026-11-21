@@ -6,20 +6,17 @@ SmolLM model component for [Magnetar](https://github.com/astorise/Magnetar).
 
 The component contains a producer for prefill, cached-decode and segmented
 decoder graphs for the Llama-compatible SmolLM2 architecture through the
-Magnetar `model-component-graph` 1.4.0 interface. The graph producer is derived from
+Magnetar `model-component-graph` 1.8.0 interface. The graph producer is derived from
 `Magnetar-component-Llama` at `06bfbfad6bce156a449b02f790c3b6bf95417cab`;
 the upstream copyright and MIT license are included in `LICENSE`.
 
-The default build refuses graph production because the host contract cannot
-verify the checkpoint's activation. `test-only-assume-silu` bypasses this
-guard solely for pinned SiLU test fixtures; it is not a production mode.
-Magnetar's engine integration test builds and invokes this test-only artifact using the
+The component reads the checkpoint's activation from the host and rejects
+missing or non-SiLU activations before building a graph. Magnetar's engine
+integration test builds and invokes the artifact using the
 published SmolLM2-135M-Instruct dimensions for both prefill and decode. A
 separate production-loading test compares a tiny, random Llama checkpoint's
 prefill and cached-decode logits with Transformers. These are not tests of
-the published checkpoint's weights. The checkpoint's activation must also be
-preserved and validated by the runtime; see
-[Magnetar #217](https://github.com/astorise/Magnetar/issues/217).
+the published checkpoint's weights.
 
 The Rust library also reads and validates SmolLM3's per-layer RoPE/NoPE
 position plan from a Hugging Face configuration. Integration tests exercise the
@@ -40,7 +37,7 @@ This repository contains a model component, not a hardware Provider. It is inten
 To build and validate the actual Component artifact:
 
 ```sh
-cargo build --locked --release --target wasm32-unknown-unknown --features test-only-assume-silu
+cargo build --locked --release --target wasm32-unknown-unknown
 wasm-tools component new target/wasm32-unknown-unknown/release/magnetar_component_smollm.wasm -o target/smollm2.component.wasm
 wasm-tools validate target/smollm2.component.wasm --features component-model
 ```

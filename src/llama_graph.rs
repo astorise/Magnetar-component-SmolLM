@@ -3,7 +3,7 @@
 //! its MIT license and copyright notice are retained in `LICENSE`.
 //!
 //! Production, configurable Llama Model Component
-//! (`magnetar:model-component-graph@1.4.0`).
+//! (`magnetar:model-component-graph@1.8.0`).
 //!
 //! Builds prefill and decode Execution Graphs for whatever Llama-compatible
 //! architecture the active Model Instance was loaded with, via the
@@ -403,13 +403,13 @@ fn build_layer(
 /// prior segment's output. `end_layer == config.num_hidden_layers` ends with
 /// the final-norm/lm-head projection; an earlier `end_layer` ends with the
 /// raw post-layer hidden state for a subsequent segment to consume.
-#[cfg(not(feature = "test-only-assume-silu"))]
 fn ensure_activation_verified() {
-    panic!("SmolLM2 graph production requires validated SiLU activation (Magnetar #217)");
+    match model_config::hidden_activation().as_deref() {
+        Some("silu") => {}
+        Some(other) => panic!("SmolLM2 does not implement checkpoint activation {other:?}"),
+        None => panic!("SmolLM2 graph production requires a known checkpoint activation"),
+    }
 }
-
-#[cfg(feature = "test-only-assume-silu")]
-fn ensure_activation_verified() {}
 
 fn build_graph_segment(
     phase: GraphPhase,
@@ -419,15 +419,14 @@ fn build_graph_segment(
     start_layer: u32,
     end_layer: u32,
 ) -> String {
-    // `model-config@1.4.0` does not communicate hidden_act. Never emit a
-    // SiLU graph for an unverified checkpoint in the default build. The
-    // opt-in feature exists exclusively for pinned-reference integration tests.
+    // Never emit a fixed-SiLU graph for an unverified checkpoint.
     ensure_activation_verified();
     let config = model_config::model_config();
     // Llama 3 checkpoints rescale RoPE frequencies per pair; the Runtime
     // only forwards what this Component declares on its `rope` nodes.
     let rope_scaling = model_config::rope_scaling().map(|scaling| match scaling {
         RopeFrequencyScaling::Banded(banded) => banded,
+        RopeFrequencyScaling::Yarn(_) => panic!("SmolLM2 does not support YaRN RoPE"),
     });
     begin_graph(phase, sequence_length, position_offset);
 
