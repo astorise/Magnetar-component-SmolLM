@@ -4,9 +4,9 @@ SmolLM model component for [Magnetar](https://github.com/astorise/Magnetar).
 
 ## Status
 
-The component contains a producer for prefill, cached-decode and segmented
-decoder graphs for the Llama-compatible SmolLM2 architecture through the
-Magnetar `model-component-graph` 1.8.0 interface. The graph producer is derived from
+The component produces prefill, cached-decode and segmented decoder graphs
+for SmolLM2 and SmolLM3 through the Magnetar `model-component-graph` 1.9.0
+interface. The graph producer is derived from
 `Magnetar-component-Llama` at `06bfbfad6bce156a449b02f790c3b6bf95417cab`;
 the upstream copyright and MIT license are included in `LICENSE`.
 
@@ -19,16 +19,16 @@ prefill and cached-decode logits with Transformers. These are not tests of
 the published checkpoint's weights.
 
 The Rust library also reads and validates SmolLM3's per-layer RoPE/NoPE
-position plan from a Hugging Face configuration. Integration tests exercise the
-published SmolLM3-3B configuration at a pinned revision and malformed inputs.
-SmolLM3 graph production and inference are not implemented.
+position plan from a Hugging Face configuration. Magnetar passes the plan to
+the Component, caches raw keys for NoPE layers, and compares tiny mixed-layer
+prefill and cached-decode logits against Transformers. Integration tests also
+exercise the published SmolLM3-3B configuration and malformed inputs.
 
 ## Work required
 
 Loading and validating real released checkpoints remain necessary before
-claiming production inference support. The runtime contract needed for
-SmolLM3 per-layer RoPE/NoPE is tracked in
-[Magnetar #212](https://github.com/astorise/Magnetar/issues/212).
+claiming full production qualification. SmolLM3 sliding-window attention and
+MLP bias are currently refused; YaRN scaling is not implemented here.
 
 A real implementation must identify a specific checkpoint and its license, integrate the relevant Magnetar component and runtime contracts, and validate outputs against an independent reference. See the [upstream model or project](https://huggingface.co/HuggingFaceTB/SmolLM3-3B). Model weights are not included.
 

@@ -3,7 +3,7 @@
 //! its MIT license and copyright notice are retained in `LICENSE`.
 //!
 //! Production, configurable Llama Model Component
-//! (`magnetar:model-component-graph@1.8.0`).
+//! (`magnetar:model-component-graph@1.9.0`).
 //!
 //! Builds prefill and decode Execution Graphs for whatever Llama-compatible
 //! architecture the active Model Instance was loaded with, via the
@@ -99,14 +99,24 @@ fn weight_tensor_name(layer: u64, suffix: &str) -> String {
 /// checkpoint's own `architecture-config` (QKV bias present) produces one
 /// with them -- the same code path serves both, driven only by what was
 /// actually ingested.
+struct LayerPosition {
+    use_rope: bool,
+    offset: i64,
+}
+
 fn build_layer(
     config: &ArchitectureConfig,
     rope_scaling: Option<&BandedRopeScaling>,
+    position: LayerPosition,
     layer: u64,
     residual_in: &str,
     sequence_length: u64,
     kv_append: bool,
 ) -> String {
+    let LayerPosition {
+        use_rope,
+        offset: position_offset,
+    } = position;
     let prefix = format!("layer{layer}");
     let hidden_size = config.hidden_size;
     let intermediate_size = config.intermediate_size;
@@ -165,6 +175,11 @@ fn build_layer(
         q
     };
     let k_weight = weight_edge(&weight_tensor_name(layer, "k_proj"));
+    let k_kv_involvement = KvInvolvement {
+        resource_id: kv_resource(layer, KvCacheRole::K),
+        role: KvCacheRole::K,
+        append: kv_append,
+    };
     let k = add_node(
         &format!("{prefix}.k_proj"),
         "matmul",
@@ -172,7 +187,11 @@ fn build_layer(
         &[],
         &[normed.clone(), k_weight],
         &shape(vec![sequence_length, kv_dim]),
-        None,
+        if !use_rope && !config.attention_bias {
+            Some(&k_kv_involvement)
+        } else {
+            None
+        },
     );
     let k = if config.attention_bias {
         let k_bias = weight_edge(&weight_tensor_name(layer, "k_bias"));
@@ -183,7 +202,11 @@ fn build_layer(
             &[],
             &[k, k_bias],
             &shape(vec![sequence_length, kv_dim]),
-            None,
+            if !use_rope {
+                Some(&k_kv_involvement)
+            } else {
+                None
+            },
         )
     } else {
         k
@@ -245,29 +268,29 @@ fn build_layer(
         .chain(rope_scaling.into_iter().flat_map(banded_rope_attrs))
         .collect::<Vec<_>>()
     };
-    let q_rope = add_node(
-        &format!("{prefix}.rope_q"),
-        "rope",
-        "PositionEncoding",
-        &rope_attrs(0, attention_head_count),
-        &[q],
-        &shape(vec![sequence_length, q_dim]),
-        None,
-    );
-    let k_kv = kv_resource(layer, KvCacheRole::K);
-    let k_rope = add_node(
-        &format!("{prefix}.rope_k"),
-        "rope",
-        "PositionEncoding",
-        &rope_attrs(0, kv_head_count),
-        &[k],
-        &shape(vec![sequence_length, kv_dim]),
-        Some(&KvInvolvement {
-            resource_id: k_kv,
-            role: KvCacheRole::K,
-            append: kv_append,
-        }),
-    );
+    let (q_positioned, k_positioned) = if use_rope {
+        let q_rope = add_node(
+            &format!("{prefix}.rope_q"),
+            "rope",
+            "PositionEncoding",
+            &rope_attrs(position_offset, attention_head_count),
+            &[q],
+            &shape(vec![sequence_length, q_dim]),
+            None,
+        );
+        let k_rope = add_node(
+            &format!("{prefix}.rope_k"),
+            "rope",
+            "PositionEncoding",
+            &rope_attrs(position_offset, kv_head_count),
+            &[k],
+            &shape(vec![sequence_length, kv_dim]),
+            Some(&k_kv_involvement),
+        );
+        (q_rope, k_rope)
+    } else {
+        (q, k)
+    };
 
     let attn_out = add_node(
         &format!("{prefix}.attention"),
@@ -292,7 +315,7 @@ fn build_layer(
                 AttributeValue::Text("causal".to_string()),
             ),
         ],
-        &[q_rope, k_rope, v],
+        &[q_positioned, k_positioned, v],
         &shape(vec![sequence_length, q_dim]),
         None,
     );
@@ -406,8 +429,8 @@ fn build_layer(
 fn ensure_activation_verified() {
     match model_config::hidden_activation().as_deref() {
         Some("silu") => {}
-        Some(other) => panic!("SmolLM2 does not implement checkpoint activation {other:?}"),
-        None => panic!("SmolLM2 graph production requires a known checkpoint activation"),
+        Some(other) => panic!("SmolLM does not implement checkpoint activation {other:?}"),
+        None => panic!("SmolLM graph production requires a known checkpoint activation"),
     }
 }
 
@@ -422,6 +445,20 @@ fn build_graph_segment(
     // Never emit a fixed-SiLU graph for an unverified checkpoint.
     ensure_activation_verified();
     let config = model_config::model_config();
+    let rope_layers = model_config::rope_layers();
+    if let Some(layers) = &rope_layers {
+        assert_eq!(
+            layers.len(),
+            config.num_hidden_layers as usize,
+            "invalid per-layer RoPE selection"
+        );
+    }
+    assert!(
+        start_layer <= end_layer && end_layer <= config.num_hidden_layers,
+        "invalid layer segment"
+    );
+    let graph_position =
+        i64::try_from(position_offset).expect("position offset exceeds graph limits");
     // Llama 3 checkpoints rescale RoPE frequencies per pair; the Runtime
     // only forwards what this Component declares on its `rope` nodes.
     let rope_scaling = model_config::rope_scaling().map(|scaling| match scaling {
@@ -453,6 +490,12 @@ fn build_graph_segment(
         hidden = build_layer(
             &config,
             rope_scaling.as_ref(),
+            LayerPosition {
+                use_rope: rope_layers
+                    .as_ref()
+                    .is_none_or(|layers| layers[layer as usize]),
+                offset: graph_position,
+            },
             layer,
             &hidden,
             sequence_length,

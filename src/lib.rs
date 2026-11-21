@@ -1,8 +1,7 @@
 //! SmolLM model component for Magnetar.
 //!
-//! This initial implementation reads SmolLM3's per-layer positional
-//! configuration, and provides the Llama-compatible graph producer used by
-//! SmolLM2. SmolLM3 graph production and inference are not implemented yet.
+//! Configurable SmolLM2/SmolLM3 decoder graph production, including SmolLM3's
+//! per-layer rotary and position-independent attention choice.
 
 mod llama_graph;
 
@@ -30,7 +29,12 @@ impl PositionPlan {
     /// This validates only the fields needed for the position plan. A
     /// successful result does not imply that the checkpoint can be executed.
     pub fn from_huggingface_config(bytes: &[u8]) -> Result<Self, ConfigError> {
-        let config: PositionConfig = serde_json::from_slice(bytes)
+        let value: serde_json::Value = serde_json::from_slice(bytes)
+            .map_err(|error| ConfigError(format!("invalid SmolLM3 config: {error}")))?;
+        let interval_is_null = value
+            .get("no_rope_layer_interval")
+            .is_some_and(serde_json::Value::is_null);
+        let config: PositionConfig = serde_json::from_value(value)
             .map_err(|error| ConfigError(format!("invalid SmolLM3 config: {error}")))?;
         if config.model_type != "smollm3" {
             return Err(ConfigError(format!(
@@ -64,6 +68,11 @@ impl PositionPlan {
                 })
                 .collect::<Result<Vec<_>, _>>()?
         } else {
+            if interval_is_null {
+                return Err(ConfigError(
+                    "no_rope_layer_interval must be a positive integer".to_string(),
+                ));
+            }
             let interval = config.no_rope_layer_interval.unwrap_or(4);
             if interval == 0 {
                 return Err(ConfigError(

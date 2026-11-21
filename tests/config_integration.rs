@@ -55,6 +55,7 @@ fn rejects_invalid_configs_instead_of_silently_changing_position_semantics() {
         br#"{"model_type":"smollm3","num_hidden_layers":2,"no_rope_layers":[1,2]}"#,
         br#"{"model_type":"smollm3","num_hidden_layers":2,"no_rope_layers":[1,true]}"#,
         br#"{"model_type":"smollm3","num_hidden_layers":2,"no_rope_layer_interval":0}"#,
+        br#"{"model_type":"smollm3","num_hidden_layers":2,"no_rope_layer_interval":null}"#,
         b"not-json",
     ];
     for config in cases {
