@@ -31,9 +31,6 @@ jobs:
       - name: Build and validate the graph Component
         run: |
           cargo +1.100.0 build --locked --release --target wasm32-unknown-unknown
-          wasm-tools component new target/wasm32-unknown-unknown/release/magnetar_component_smollm.wasm -o "$RUNNER_TEMP/smollm2-blocked.component.wasm"
-          wasm-tools validate "$RUNNER_TEMP/smollm2-blocked.component.wasm" --features component-model
-          cargo +1.100.0 build --locked --release --target wasm32-unknown-unknown --features test-only-assume-silu
           wasm-tools component new target/wasm32-unknown-unknown/release/magnetar_component_smollm.wasm -o "$RUNNER_TEMP/smollm2.component.wasm"
           wasm-tools validate "$RUNNER_TEMP/smollm2.component.wasm" --features component-model
           wasm-tools component wit "$RUNNER_TEMP/smollm2.component.wasm" > "$RUNNER_TEMP/smollm2.wit"
