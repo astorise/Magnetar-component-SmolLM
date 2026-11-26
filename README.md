@@ -24,6 +24,25 @@ the Component, caches raw keys for NoPE layers, and compares tiny mixed-layer
 prefill and cached-decode logits against Transformers. Integration tests also
 exercise the published SmolLM3-3B configuration and malformed inputs.
 
+## Built on the shared crates
+
+The graph IR (`Phase`, `KvRole`, `Value`, `Attr`, `Kv`, `Node`), the `GraphSink`
+the builder writes to and the adapter to the contract's `graph-builder` come from
+[`magnetar-component-sdk`](https://github.com/astorise/magnetar-component-sdk),
+and the contract itself (the WIT file and its generated bindings, version 1.9.0)
+from [`magnetar-component-api`](https://github.com/astorise/magnetar-component-api)
+with its `v1_9` feature. Both are git dependencies pinned by commit while they
+are in development, and published once stable. `src/plan.rs` keeps only what is
+specific to this Component: the configuration and the graph, including SmolLM3's
+rotary and NoPE layers; `src/component.rs` reads the Runtime's `model-config` and
+calls the builder.
+
+`tests/golden/` holds the graphs the builder emits, recorded before it moved onto
+either crate (from the unmodified graph code, run on the host against a recording
+stand-in for the Runtime's imports); `tests/golden_graphs.rs` compares every call
+against them, and `tests/refusals.rs` pins what is refused. Regenerate the goldens
+deliberately with `UPDATE_GOLDEN=1 cargo test --test golden_graphs`.
+
 ## Work required
 
 Loading and validating real released checkpoints remain necessary before

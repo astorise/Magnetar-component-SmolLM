@@ -3,7 +3,10 @@
 //! Configurable SmolLM2/SmolLM3 decoder graph production, including SmolLM3's
 //! per-layer rotary and position-independent attention choice.
 
-mod llama_graph;
+pub mod plan;
+
+#[cfg(any(target_arch = "wasm32", feature = "bindings"))]
+mod component;
 
 use serde::Deserialize;
 use std::error::Error;
