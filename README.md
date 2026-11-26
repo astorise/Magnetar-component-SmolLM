@@ -53,6 +53,15 @@ A real implementation must identify a specific checkpoint and its license, integ
 
 This repository contains a model component, not a hardware Provider. It is intended to be checked out by Magnetar at `components/smollm`.
 
+`.github/workflows/qualification.yml` asks a different question: does the
+Magnetar Runtime accept the artifact this Component builds? It calls Magnetar's
+reusable
+[`component-qualification.yml`](https://github.com/astorise/Magnetar/blob/main/.github/workflows/component-qualification.yml),
+which builds this Component for the Component Model inside a Magnetar checkout,
+in place of the one Magnetar pins, validates it and runs the Runtime's tests that
+consume it (`tools/qualify_component.sh list`, in Magnetar, says which). The
+tests stay in Magnetar; this repository only names the Component (`smollm`).
+
 To build and validate the actual Component artifact:
 
 ```sh
