@@ -1,0 +1,38 @@
+name: SmolLM integration
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  real-checkpoint-config:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Install Rust toolchain
+        run: rustup toolchain install 1.100.0 --profile minimal
+      - name: Test the pinned checkpoint config and invalid inputs
+        run: cargo +1.100.0 test --locked --test config_integration
+
+  component-abi:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Install Rust toolchain and Wasm target
+        run: |
+          rustup toolchain install 1.100.0 --profile minimal
+          rustup target add --toolchain 1.100.0 wasm32-unknown-unknown
+      - name: Install wasm-tools
+        uses: taiki-e/install-action@d270f69d9016a914699316c97c419c84d5e96475 # wasm-tools
+      - name: Build and validate the graph Component
+        run: |
+          cargo +1.100.0 build --locked --release --target wasm32-unknown-unknown
+          wasm-tools component new target/wasm32-unknown-unknown/release/magnetar_component_smollm.wasm -o "$RUNNER_TEMP/smollm2.component.wasm"
+          wasm-tools validate "$RUNNER_TEMP/smollm2.component.wasm" --features component-model
+          wasm-tools component wit "$RUNNER_TEMP/smollm2.component.wasm" > "$RUNNER_TEMP/smollm2.wit"
+          grep -F 'export build-prefill-graph:' "$RUNNER_TEMP/smollm2.wit"
+          grep -F 'export build-decode-graph:' "$RUNNER_TEMP/smollm2.wit"
