@@ -18,6 +18,15 @@ jobs:
       - name: Test the pinned checkpoint config and invalid inputs
         run: cargo +1.100.0 test --locked --test config_integration
 
+  graph:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Install Rust toolchain
+        run: rustup toolchain install 1.100.0 --profile minimal
+      - name: Test the graph, the golden graphs, the refusals and the WIT adapter
+        run: cargo +1.100.0 test --locked --features bindings
+
   component-abi:
     runs-on: ubuntu-latest
     steps:

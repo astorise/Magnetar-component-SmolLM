@@ -16,4 +16,12 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-wit-bindgen = "0.63"
+# Pinned to a commit while the SDK is in development; the crate is published
+# once it is stable.
+magnetar-component-sdk = { git = "https://github.com/astorise/magnetar-component-sdk", rev = "4e2e556176f465aa8d271259104de9e2f5aefdfa" }
+# The contract: pinned by commit while the crate is in development, and the
+# feature names the contract version this Component targets.
+magnetar-component-api = { git = "https://github.com/astorise/magnetar-component-api", rev = "2383a7479ff496b147e27e294f3190d5209b39d4", features = ["v1_9"] }
+
+[features]
+bindings = []
