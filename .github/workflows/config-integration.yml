@@ -27,7 +27,7 @@ jobs:
           rustup toolchain install 1.100.0 --profile minimal
           rustup target add --toolchain 1.100.0 wasm32-unknown-unknown
       - name: Install wasm-tools
-        uses: taiki-e/install-action@d270f69d9016a914699316c97c419c84d5e96475 # wasm-tools
+        uses: taiki-e/install-action@39a0b1570a117ededf7f373a25a04e92fa1994b0 # wasm-tools
       - name: Build and validate the graph Component
         run: |
           cargo +1.100.0 build --locked --release --target wasm32-unknown-unknown
